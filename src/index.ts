@@ -51,7 +51,7 @@ export const cmsSnapshotArtifactManifest: CmsSnapshotArtifactManifest = {
   accepts: { file: { mimeTypes: [CMS_SNAPSHOT_MIME] } },
   ui: {
     abiVersion: 1,
-    sdkAbiRange: "^2.4.0",
+    sdkAbiRange: "^2.5.0",
     renderers: {
       detail: {
         entry: "./src/renderers/detail.tsx",
