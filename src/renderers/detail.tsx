@@ -5,16 +5,28 @@
 // The full review-target view of a CMS content snapshot: the reviewed fields
 // (title / content / …) presented READ-ONLY, with the reviewed SCOPE (the closed
 // set of field paths the connector placed under review) shown explicitly so a
-// human can SEE and DECIDE the change from the page. Requests no host ports;
-// renders only from the authorized props snapshot; a never-blank floor for every
-// state (no content, loading, fetch error, malformed bytes shown raw, and an
-// empty field set — the loaded/malformed/empty rendering lives in `CmsFieldsView`).
+// human can SEE and DECIDE the change from the page.
+//
+// IT DRAWS FROM THE CONTENT CHANNEL AND FROM NOTHING ELSE. The snapshot arrives
+// on these props, read from the pinned revision on the server and capped there —
+// this display makes no request of its own, on any road. That is what lets a
+// reviewer read the change inside a third-party application, where a display
+// reaching for bytes from the browser carries no credential and paints an empty
+// plate.
+//
+// NEVER BLANK, NEVER THROWN: content it cannot draw becomes a named floor; the
+// loaded / malformed / empty renderings live in `CmsFieldsView`.
 
 import { type CSSProperties, type ReactNode } from "react";
 
 import { CmsFieldsView } from "../cms-view";
-import { type ArtifactRendererProps } from "../renderer-props";
-import { useArtifactText } from "../use-artifact-text";
+import {
+  byteDownloadHref,
+  contentFloorMessage,
+  resolveArtifactTextView,
+  type ArtifactTextView,
+} from "../content-view";
+import { PROPS_API_VERSION, type ArtifactRendererProps } from "../renderer-props";
 
 const wrapStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 };
 
@@ -52,33 +64,24 @@ const noticeStyle: CSSProperties = {
   padding: "8px 0",
 };
 
-const skeletonStyle: CSSProperties = {
-  height: "96px",
-  borderRadius: "6px",
-  background: "var(--muted, #f3f4f6)",
-  opacity: 0.7,
-};
-
-function Body({ url }: { url: string | null }): ReactNode {
-  const state = useArtifactText(url);
-  switch (state.status) {
-    case "no-content":
-      return (
-        <div style={noticeStyle} data-cms-detail-empty>
-          No CMS content is available for this snapshot.
-        </div>
-      );
-    case "loading":
-      return <div style={skeletonStyle} aria-busy="true" data-cms-detail-loading />;
-    case "error":
-      return (
-        <div style={noticeStyle} data-cms-detail-error>
-          {state.message}.
-        </div>
-      );
-    case "loaded":
-      return <CmsFieldsView text={state.text} />;
+function Body({ view }: { view: ArtifactTextView }): ReactNode {
+  if (view.kind === "floor") {
+    return (
+      <div style={noticeStyle} data-cms-detail-floor={view.reason}>
+        {contentFloorMessage(view.reason)}
+      </div>
+    );
   }
+  return (
+    <>
+      <CmsFieldsView text={view.text} />
+      {view.truncated ? (
+        <p style={noticeStyle} data-cms-detail-truncated>
+          {`Showing the first ${view.projectedByteLength.toLocaleString("en-US")} of ${view.byteLength.toLocaleString("en-US")} bytes. Download it to read the whole of it.`}
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 /**
@@ -86,11 +89,11 @@ function Body({ url }: { url: string | null }): ReactNode {
  * with the shared React singleton; it owns no React root.
  */
 export default function CmsSnapshotDetail(props: ArtifactRendererProps): ReactNode {
-  const url = props.urls.preview ?? props.urls.download;
-  const title = props.artifact.title ?? "CMS content snapshot";
-  const download = props.actions.download ?? props.urls.download;
+  const view = resolveArtifactTextView(props);
+  const title = props?.artifact?.title ?? "CMS content snapshot";
+  const download = byteDownloadHref(props);
   return (
-    <div style={wrapStyle} data-cms-artifact-detail>
+    <div style={wrapStyle} data-cms-artifact-detail data-props-api-version={PROPS_API_VERSION}>
       <div style={headerStyle}>
         <p style={titleStyle} title={title}>
           {title}
@@ -101,7 +104,7 @@ export default function CmsSnapshotDetail(props: ArtifactRendererProps): ReactNo
           </a>
         ) : null}
       </div>
-      <Body url={url} />
+      <Body view={view} />
     </div>
   );
 }
