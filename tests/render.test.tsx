@@ -4,30 +4,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { CmsFieldsView } from "../src/cms-view";
 import CmsSnapshotDetail from "../src/renderers/detail";
 import CmsSnapshotPreview from "../src/renderers/preview";
-import type { ArtifactRendererProps } from "../src/renderer-props";
+import { noContent, props, textContent } from "./props-fixture";
 
-function props(over: Partial<ArtifactRendererProps> = {}): ArtifactRendererProps {
-  return {
-    propsApiVersion: 1,
-    artifact: {
-      id: "art_1",
-      title: "Homepage hero",
-      objectType: "@cinatra-ai/objects:cms-content-snapshot",
-      mime: "application/vnd.cinatra.cms-fields+json",
-      size: 10,
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
-      ownerLevel: "organization",
-      visibility: "organization",
-      sourceUrl: null,
-    },
-    representation: { revisionId: "rev_1", mime: "application/vnd.cinatra.cms-fields+json" },
-    urls: { preview: "/p", download: "/d" },
-    identity: { kind: "extension", extension: "@cinatra-ai/cms-snapshot-artifact" },
-    actions: { download: "/d", openInSource: null },
-    ...over,
-  } as ArtifactRendererProps;
-}
+const SNAPSHOT = JSON.stringify({
+  "post.title": "New headline",
+  "post.content": "The full body copy under review.",
+  "post.status": "draft",
+});
 
 describe("CmsFieldsView (loaded snapshot)", () => {
   const snapshot = JSON.stringify({
@@ -69,22 +52,32 @@ describe("CmsFieldsView (loaded snapshot)", () => {
 });
 
 describe("detail + preview renderers (static markup)", () => {
-  it("detail renders the header/title and download and never blanks", () => {
-    const html = renderToStaticMarkup(<CmsSnapshotDetail {...props()} />);
+  it("detail draws the projected snapshot with its header/title and download", () => {
+    const html = renderToStaticMarkup(<CmsSnapshotDetail {...props(textContent(SNAPSHOT))} />);
     expect(html).toContain("data-cms-artifact-detail");
     expect(html).toContain("Homepage hero");
     expect(html).toContain("data-cms-download");
+    expect(html).toContain("New headline");
   });
 
-  it("detail with no url shows the no-content floor", () => {
-    const html = renderToStaticMarkup(
-      <CmsSnapshotDetail {...props({ urls: { preview: null, download: null }, actions: { download: null, openInSource: null } })} />,
-    );
-    expect(html).toContain("data-cms-detail-empty");
+  it("detail floors, named and never blank, when the channel has nothing to give it", () => {
+    const html = renderToStaticMarkup(<CmsSnapshotDetail {...props(noContent("absent"))} />);
+    expect(html).toContain('data-cms-detail-floor="content-absent"');
+    expect(html.replace(/<[^>]*>/g, "").trim().length).toBeGreaterThan(0);
   });
 
-  it("preview with a url renders its shell (never blank)", () => {
-    const html = renderToStaticMarkup(<CmsSnapshotPreview {...props()} />);
+  it("preview draws its shell and a summary of the projected snapshot", () => {
+    const html = renderToStaticMarkup(<CmsSnapshotPreview {...props(textContent(SNAPSHOT))} />);
     expect(html).toContain("data-cms-artifact-preview");
+    expect(html).toContain("data-cms-preview-summary");
+  });
+
+  it("neither slot draws a loading state — there is nothing to wait for", () => {
+    expect(renderToStaticMarkup(<CmsSnapshotDetail {...props(textContent(SNAPSHOT))} />)).not.toContain(
+      "aria-busy",
+    );
+    expect(renderToStaticMarkup(<CmsSnapshotPreview {...props(textContent(SNAPSHOT))} />)).not.toContain(
+      "aria-busy",
+    );
   });
 });
