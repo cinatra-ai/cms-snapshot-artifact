@@ -1,10 +1,12 @@
 // THE DECISION LEAF every slot of this package shares: it maps the authorized
-// host snapshot to exactly one of two outcomes, and it is the only place in this
-// package that reads the content channel.
+// host snapshot to exactly one of three outcomes, and it is the only place in
+// this package that reads the content channel.
 //
 //   `text` — the pinned text the host projected, with what the channel said
 //     about it (the revision it was read from, and whether the host cut it to
 //     its cap).
+//   `page` — the page content form an agent extension filed as JSON, read whole
+//     from the pinned revision.
 //   `floor` — a NAMED reason it cannot be drawn. Never blank, never a throw: a
 //     display that threw would take the surface around it down with it.
 //
@@ -16,7 +18,11 @@ import {
   ARTIFACT_CONTENT_CHANNEL_VERSION,
   type ArtifactContentProjection,
 } from "./artifact-content-channel";
+import { parseCmsPage, type CmsPage } from "./cms-page-model";
 import { PROPS_API_VERSION, type ArtifactRendererProps } from "./renderer-props";
+
+/** The representation the page content form is filed as. */
+const PAGE_FORM_MIME = "application/json";
 
 /** Why this display is drawing a floor instead of the content. */
 export type ContentFloorReason =
@@ -30,7 +36,8 @@ export type ContentFloorReason =
   | "content-not-text"
   | "content-revision-mismatch"
   | "invalid-content-projection"
-  | "empty-content";
+  | "empty-content"
+  | "content-not-page";
 
 /** What this display can be showing. */
 export type ArtifactTextView =
@@ -43,6 +50,13 @@ export type ArtifactTextView =
       truncated: boolean;
       byteLength: number;
       projectedByteLength: number;
+    }
+  | {
+      kind: "page";
+      /** The page content form, parsed whole. */
+      page: CmsPage;
+      /** The revision the channel read the form from. */
+      revisionId: string;
     }
   | { kind: "floor"; reason: ContentFloorReason };
 
@@ -66,6 +80,7 @@ const FLOOR_MESSAGES: Record<ContentFloorReason, string> = {
     "This CMS snapshot cannot be drawn: the content handed to this view was read from a different revision than the one being viewed.",
   "invalid-content-projection": "This CMS snapshot cannot be drawn: the content handed to this view is incomplete.",
   "empty-content": "This CMS snapshot is empty.",
+  "content-not-page": "This artifact holds a document that is not a CMS page, so this view has nothing to draw.",
 };
 
 const FLOOR_SUMMARIES: Record<ContentFloorReason, string> = {
@@ -80,6 +95,7 @@ const FLOOR_SUMMARIES: Record<ContentFloorReason, string> = {
   "content-revision-mismatch": "revision mismatch",
   "invalid-content-projection": "content incomplete",
   "empty-content": "empty",
+  "content-not-page": "not a CMS page",
 };
 
 /** The sentence a reader sees for a floor on the full view. One per reason. */
@@ -109,6 +125,10 @@ export function byteDownloadHref(props: ArtifactTextViewInput): string | null {
  * reaching a sentence a reader would read as fact. */
 function isByteCount(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isPageFormMime(mime: unknown): boolean {
+  return typeof mime === "string" && mime.split(";")[0].trim().toLowerCase() === PAGE_FORM_MIME;
 }
 
 function floor(reason: ContentFloorReason): ArtifactTextView {
@@ -215,7 +235,7 @@ export function resolveArtifactTextView(props: ArtifactTextViewInput): ArtifactT
   // artifact has no materialized representation at all while the projection
   // claims one — this display would be labelling one revision's content with
   // another's, and that is worse than drawing nothing.
-  const representation = snapshot.representation as { revisionId?: unknown } | null | undefined;
+  const representation = snapshot.representation as { revisionId?: unknown; mime?: unknown } | null | undefined;
   if (
     representation === null ||
     representation === undefined ||
@@ -225,8 +245,20 @@ export function resolveArtifactTextView(props: ArtifactTextViewInput): ArtifactT
     return floor("content-revision-mismatch");
   }
 
+  // THE PAGE CONTENT FORM is read only whole: a cut JSON document is no form
+  // at all, whatever its prefix holds, and a JSON document that is not the
+  // form is named as such.
+  const pageForm = isPageFormMime(representation.mime);
+  if (pageForm && truncated) return floor("content-over-cap");
+
   if (text.trim().length === 0) {
     return floor("empty-content");
+  }
+
+  if (pageForm) {
+    const parsed = parseCmsPage(text);
+    if (!parsed.ok) return floor("content-not-page");
+    return { kind: "page", page: parsed.page, revisionId: contentRevisionId };
   }
 
   return {

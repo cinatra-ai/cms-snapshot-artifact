@@ -47,7 +47,8 @@
       "accepts": {
         "file": {
           "mimeTypes": [
-            "application/vnd.cinatra.cms-fields+json"
+            "application/vnd.cinatra.cms-fields+json",
+            "application/json"
           ]
         }
       },
@@ -59,14 +60,16 @@
             "entry": "./src/renderers/detail.tsx",
             "propsApiVersion": 2,
             "representations": [
-              "application/vnd.cinatra.cms-fields+json"
+              "application/vnd.cinatra.cms-fields+json",
+              "application/json"
             ]
           },
           "preview": {
             "entry": "./src/renderers/preview.tsx",
             "propsApiVersion": 2,
             "representations": [
-              "application/vnd.cinatra.cms-fields+json"
+              "application/vnd.cinatra.cms-fields+json",
+              "application/json"
             ]
           }
         }
@@ -78,6 +81,19 @@
           "dispositions": {
             "projection": "artifact-safe",
             "pinnable": false,
+            "snapshotPolicy": "none",
+            "sensitivity": "normal"
+          },
+          "schema": {
+            "type": "object"
+          }
+        },
+        {
+          "type": "@cinatra-ai/cms-snapshot-artifact:cms-page",
+          "claim": "dedicated",
+          "dispositions": {
+            "projection": "artifact-safe",
+            "pinnable": true,
             "snapshotPolicy": "none",
             "sensitivity": "normal"
           },

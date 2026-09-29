@@ -129,6 +129,14 @@ describe("the guard itself is live", () => {
   });
 });
 
+/** The one subframe the approved drawing asks for: the page embedded in its
+ * frame (cinatra#3092). It is admitted in exactly this one file and for the
+ * subframe pattern alone; every other file and every other pattern is scanned
+ * as before. The frame loads the published page's own public address, never
+ * this package's bytes, and the arm below pins how it is drawn. */
+const PAGE_FRAME = "renderers/page-frame.tsx";
+const ADMITTED: Record<string, string[]> = { "a subframe": [PAGE_FRAME] };
+
 describe("the shipped display makes no browser load of its own", () => {
   const files = sourceFiles(SRC);
 
@@ -138,10 +146,26 @@ describe("the shipped display makes no browser load of its own", () => {
 
   for (const { what, pattern } of FORBIDDEN) {
     it(`contains ${what} nowhere in src/`, () => {
+      const admitted = ADMITTED[what] ?? [];
       const offenders = files
         .filter((file) => pattern.test(codeOnly(readFileSync(file, "utf8"))))
-        .map((file) => file.slice(SRC.length + 1));
+        .map((file) => file.slice(SRC.length + 1))
+        .filter((file) => !admitted.includes(file));
       expect(offenders).toEqual([]);
     });
   }
+
+  it("draws its one frame only from a framable address, sandboxed", () => {
+    const code = codeOnly(readFileSync(join(SRC, PAGE_FRAME), "utf8"));
+    const frames = code.match(/<\s*iframe\b[^>]*>/gi) ?? [];
+    expect(frames).toHaveLength(1);
+    const frame = frames[0];
+    expect(frame).toMatch(/\bsrc=\{address\}/);
+    expect(frame).toMatch(/\bsandbox=""/);
+    expect(frame).toMatch(/\breferrerPolicy="no-referrer"/);
+    expect(frame).toMatch(/\bloading="lazy"/);
+    // The address is the component's own prop, handed in already admitted by
+    // the model's framable-address rule; the frame reads nothing else.
+    expect(code).toMatch(/export\s+function\s+\w+\s*\(\s*\{[^}]*\baddress\b[^}]*\}/);
+  });
 });

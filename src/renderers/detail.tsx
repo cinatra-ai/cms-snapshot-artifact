@@ -15,10 +15,12 @@
 // plate.
 //
 // NEVER BLANK, NEVER THROWN: content it cannot draw becomes a named floor; the
-// loaded / malformed / empty renderings live in `CmsFieldsView`.
+// loaded / malformed / empty renderings live in `CmsFieldsView`, and the page
+// content form an agent extension files is drawn by `CmsPageView`.
 
 import { type CSSProperties, type ReactNode } from "react";
 
+import { CmsPageView } from "../cms-page-view";
 import { CmsFieldsView } from "../cms-view";
 import {
   byteDownloadHref,
@@ -64,7 +66,7 @@ const noticeStyle: CSSProperties = {
   padding: "8px 0",
 };
 
-function Body({ view }: { view: ArtifactTextView }): ReactNode {
+function Body({ view }: { view: Exclude<ArtifactTextView, { kind: "page" }> }): ReactNode {
   if (view.kind === "floor") {
     return (
       <div style={noticeStyle} data-cms-detail-floor={view.reason}>
@@ -90,6 +92,15 @@ function Body({ view }: { view: ArtifactTextView }): ReactNode {
  */
 export default function CmsSnapshotDetail(props: ArtifactRendererProps): ReactNode {
   const view = resolveArtifactTextView(props);
+  if (view.kind === "page") {
+    // THE PAGE CONTENT FORM is one view: the page in its frame, the changes
+    // beneath it and the link under them — nothing else around it.
+    return (
+      <div style={wrapStyle} data-cms-artifact-detail data-props-api-version={PROPS_API_VERSION}>
+        <CmsPageView page={view.page} revisionId={view.revisionId} />
+      </div>
+    );
+  }
   const title = props?.artifact?.title ?? "CMS content snapshot";
   const download = byteDownloadHref(props);
   return (
