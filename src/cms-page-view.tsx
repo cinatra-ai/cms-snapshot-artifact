@@ -56,7 +56,7 @@ const headingStyles: Record<number, CSSProperties> = {
 
 const paragraphStyle: CSSProperties = { fontSize: "14px", lineHeight: 1.55, margin: 0 };
 
-const listStyle: CSSProperties = { fontSize: "14px", lineHeight: 1.55, margin: 0, paddingLeft: "20px" };
+const listStyle: CSSProperties = { fontSize: "14px", lineHeight: 1.55, margin: 0, paddingLeft: "20px", listStyleType: "disc" };
 
 const elisionStyle: CSSProperties = { color: "var(--muted-foreground, #6b7280)", fontSize: "14px" };
 
@@ -81,14 +81,18 @@ const linkStyle: CSSProperties = {
 
 /** The block's words with what the change removes and adds marked in place. */
 function DiffWords({ excerpt }: { excerpt: CmsPageExcerpt }): ReactNode {
-  return wordDiff(excerpt.published, excerpt.proposed).map((segment, index) => {
+  const segments = wordDiff(excerpt.published, excerpt.proposed);
+  return segments.map((segment, index) => {
     if (segment.op === "same") return <span key={index}>{segment.text}</span>;
     const core = segment.text.trimEnd();
     const trailing = segment.text.slice(core.length);
     if (core.length === 0) return <span key={index}>{segment.text}</span>;
+    const previous = segments[index - 1];
+    const separate = segment.op === "added" && previous?.op === "removed" && previous.text.trimEnd() === previous.text;
     const mark = segment.op === "removed" ? <del style={delStyle}>{core}</del> : <ins style={insStyle}>{core}</ins>;
     return (
       <span key={index}>
+        {separate ? " " : null}
         {mark}
         {trailing}
       </span>

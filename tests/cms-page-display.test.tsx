@@ -167,5 +167,54 @@ for (const fixture of PAGE_FORMS) {
       expect(all(html, /<ins\b[^>]*>([^<]*)<\/ins>/g)).toHaveLength(3);
       expect(html).toContain("data-cms-artifact-preview");
     });
+
+    const withExcerpts = (excerpts: unknown[]): Record<string, unknown> => ({ ...fixture.form, excerpts });
+    const textOf = (fragment: string): string => fragment.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&");
+    const blockText = (html: string, pattern: RegExp): string => {
+      const found = html.match(pattern);
+      expect(found).not.toBeNull();
+      return textOf(found![0]);
+    };
+    const HEADING = /<div\b[^>]*role="heading"[^>]*>.*?<\/div>/s;
+    const PARAGRAPH = /<p\b[^>]*data-cms-excerpt="paragraph"[^>]*>.*?<\/p>/s;
+    const LIST_ITEM = /<li\b[^>]*data-cms-excerpt="list-item"[^>]*>.*?<\/li>/s;
+
+    it("V11 draws the list excerpt with its list marker, in the detail and in the preview", () => {
+      const preview = renderToStaticMarkup(<CmsSnapshotPreview {...pageProps(fixture.form)} />);
+      for (const html of [detail(), preview]) {
+        const lists = all(html, /<ul\b([^>]*)>/g);
+        expect(lists).toHaveLength(1);
+        expect(lists[0]).toContain("list-style-type:disc");
+      }
+    });
+
+    it("V12 separates the struck heading from the added heading by ONE space, in the detail and in the preview", () => {
+      const preview = renderToStaticMarkup(<CmsSnapshotPreview {...pageProps(fixture.form)} />);
+      for (const html of [detail(), preview]) {
+        expect(blockText(html, HEADING)).toBe("Pricing that grows with you Pricing — 2026 plans");
+      }
+    });
+
+    it("V13 separates a struck word from the word added after it by ONE space in a paragraph and in a list item", () => {
+      const html = detail(
+        withExcerpts([
+          { region: "content", position: 0, kind: "paragraph", published: "Order now", proposed: "Order today" },
+          { region: "content", position: 1, kind: "list-item", published: "Ships Monday", proposed: "Ships Friday" },
+        ]),
+      );
+      expect(blockText(html, PARAGRAPH)).toBe("Order now today");
+      expect(blockText(html, LIST_ITEM)).toBe("Ships Monday Friday");
+      expect(all(html, /<del\b[^>]*>([^<]*)<\/del>/g)).toEqual(["now", "Monday"]);
+      expect(all(html, /<ins\b[^>]*>([^<]*)<\/ins>/g)).toEqual(["today", "Friday"]);
+    });
+
+    it("V14 keeps the spacing of a run that already carries its own space: never two spaces", () => {
+      const html = detail();
+      expect(blockText(html, PARAGRAPH)).toBe(
+        "Three plans, a price held since 2024, one price change, and the migration note under each.",
+      );
+      expect(blockText(html, LIST_ITEM)).toBe("Team — 35 39 per seat");
+      for (const kind of [HEADING, PARAGRAPH, LIST_ITEM]) expect(blockText(html, kind)).not.toMatch(/ {2}/);
+    });
   });
 }
