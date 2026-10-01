@@ -2,6 +2,8 @@
 
 A read-only viewer for CMS content snapshots — the pinned, reviewable state of a CMS change. A snapshot arrives as `application/vnd.cinatra.cms-fields+json`: a flat map of the reviewed post fields (title, content, excerpt, status, and any other in-scope fields). This renderer draws those fields legibly so a reviewer can **see and decide** the change directly on the artifact-review page, with the reviewed **scope** — the exact set of fields under review — shown explicitly. When the content type has no dedicated viewer, a review target has nothing to draw and shows "review target unavailable"; this renderer gives the CMS snapshot a first-class home instead.
 
+It also draws the page content form (`application/json`, type `@cinatra-ai/cms-snapshot-artifact:cms-page`) an agent extension files for a change it proposes to a page on a WordPress or a Drupal site: the page embedded, the changed excerpts beneath it and a link that opens the page in the CMS. The form holds `cinatraCmsPage`, `system`, `page` (`title`, `address`, `cmsAddress`), `readAt` and `excerpts` (`region`, `position`, `kind`, `level`, `published`, `proposed`).
+
 Install from the Cinatra marketplace by searching for "CMS Snapshot" and clicking **Add**. No credentials or configuration are required; the renderer is active immediately for every artifact whose content type is `application/vnd.cinatra.cms-fields+json`. Open any such artifact — including a pending CMS review target — to see its detail view rendered as a labelled, read-only field list, or a one-line summary wherever an inline preview appears. If the bytes cannot be parsed as a CMS-fields object, the exact content is shown verbatim with a short diagnostic instead of failing, so the panel is never blank.
 
 ## Works with

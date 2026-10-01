@@ -14,6 +14,7 @@
 import { type CSSProperties, type ReactNode } from "react";
 
 import { summarizeCms } from "../cms-model";
+import { CmsPageView } from "../cms-page-view";
 import { contentFloorSummary, resolveArtifactTextView, type ArtifactTextView } from "../content-view";
 import { PROPS_API_VERSION, type ArtifactRendererProps } from "../renderer-props";
 
@@ -36,6 +37,10 @@ function Body({ view }: { view: ArtifactTextView }): ReactNode {
         {contentFloorSummary(view.reason)}
       </span>
     );
+  }
+  if (view.kind === "page") {
+    // The page content form's changed excerpts, without the frame and the link.
+    return <CmsPageView page={view.page} revisionId={view.revisionId} mode="excerpts" />;
   }
   return (
     <span style={mutedStyle} data-cms-preview-summary>
