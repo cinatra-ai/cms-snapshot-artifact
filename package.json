@@ -58,7 +58,7 @@
         "renderers": {
           "detail": {
             "entry": "./src/renderers/detail.tsx",
-            "propsApiVersion": 2,
+            "propsApiVersion": 5,
             "representations": [
               "application/vnd.cinatra.cms-fields+json",
               "application/json"
