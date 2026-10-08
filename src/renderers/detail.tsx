@@ -30,6 +30,8 @@ import {
 } from "../content-view";
 import { PROPS_API_VERSION, type ArtifactRendererProps } from "../renderer-props";
 
+const DETAIL_PROPS_API_VERSION = 5;
+
 const wrapStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 };
 
 const headerStyle: CSSProperties = {
@@ -91,12 +93,28 @@ function Body({ view }: { view: Exclude<ArtifactTextView, { kind: "page" }> }): 
  * with the shared React singleton; it owns no React root.
  */
 export default function CmsSnapshotDetail(props: ArtifactRendererProps): ReactNode {
-  const view = resolveArtifactTextView(props);
+  // Detail opts into the review snapshot while its content contract remains
+  // the original one. Project only those fields into the strict shared leaf;
+  // preview still reads v2, and direct legacy v2 mounts remain compatible.
+  const isDetailSnapshot = props !== null && typeof props === "object"
+    && !Array.isArray(props) && props.propsApiVersion === DETAIL_PROPS_API_VERSION;
+  const contentProps = isDetailSnapshot ? {
+    propsApiVersion: PROPS_API_VERSION,
+    artifact: props.artifact,
+    representation: props.representation,
+    urls: props.urls,
+    identity: props.identity,
+    actions: props.actions,
+    content: props.content,
+    bytes: props.bytes,
+  } : props;
+  const view = resolveArtifactTextView(contentProps);
+  const propsApiVersion = isDetailSnapshot ? DETAIL_PROPS_API_VERSION : PROPS_API_VERSION;
   if (view.kind === "page") {
     // THE PAGE CONTENT FORM is one view: the page in its frame, the changes
     // beneath it and the link under them — nothing else around it.
     return (
-      <div style={wrapStyle} data-cms-artifact-detail data-props-api-version={PROPS_API_VERSION}>
+      <div style={wrapStyle} data-cms-artifact-detail data-props-api-version={propsApiVersion}>
         <CmsPageView page={view.page} revisionId={view.revisionId} />
       </div>
     );
@@ -104,7 +122,7 @@ export default function CmsSnapshotDetail(props: ArtifactRendererProps): ReactNo
   const title = props?.artifact?.title ?? "CMS content snapshot";
   const download = byteDownloadHref(props);
   return (
-    <div style={wrapStyle} data-cms-artifact-detail data-props-api-version={PROPS_API_VERSION}>
+    <div style={wrapStyle} data-cms-artifact-detail data-props-api-version={propsApiVersion}>
       <div style={headerStyle}>
         <p style={titleStyle} title={title}>
           {title}

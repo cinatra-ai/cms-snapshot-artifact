@@ -1,8 +1,7 @@
 // @vitest-environment node
-// THE PROPS VERSION IS ONE NUMBER, DECLARED IN THREE PLACES, and they may never
-// drift: the module constant the display checks a snapshot against, the
-// `propsApiVersion` each renderer entry declares in the authoritative manifest,
-// and the typed mirror this package exports.
+// Each slot declares the version it reads; the authoritative manifest and its
+// typed mirror must agree. Preview and the shared content leaf remain at v2;
+// detail explicitly admits the compatible v5 content projection.
 //
 // WHY IT MATTERS MORE THAN IT LOOKS. The host resolves a display, reads the
 // version it declares, and builds the snapshot AT THAT VERSION. A manifest that
@@ -36,19 +35,17 @@ describe("the props version this display is built against", () => {
     expect(PROPS_API_VERSION).toBe(2);
   });
 
-  it("is declared by every renderer entry in the authoritative manifest", () => {
+  it("declares v5 only for detail, retaining v2 for preview", () => {
     const renderers = pkg.cinatra.artifact.ui.renderers;
     expect(Object.keys(renderers).sort()).toEqual([...SLOTS].sort());
-    for (const slot of SLOTS) {
-      expect(renderers[slot].propsApiVersion, slot).toBe(PROPS_API_VERSION);
-    }
+    expect(renderers.detail.propsApiVersion).toBe(5);
+    expect(renderers.preview.propsApiVersion).toBe(PROPS_API_VERSION);
   });
 
   it("is declared by the exported typed manifest, in lock-step with package.json", () => {
-    for (const slot of SLOTS) {
-      const declared = cmsSnapshotArtifactManifest.ui.renderers[slot as keyof typeof cmsSnapshotArtifactManifest.ui.renderers];
-      expect((declared as { propsApiVersion: number }).propsApiVersion, slot).toBe(PROPS_API_VERSION);
-    }
+    expect(cmsSnapshotArtifactManifest.ui.renderers.detail.propsApiVersion).toBe(5);
+    expect(cmsSnapshotArtifactManifest.ui.renderers.preview.propsApiVersion).toBe(PROPS_API_VERSION);
+    expect(cmsSnapshotArtifactManifest.ui.renderers).toEqual(pkg.cinatra.artifact.ui.renderers);
   });
 });
 
