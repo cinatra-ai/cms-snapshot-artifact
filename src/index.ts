@@ -94,6 +94,7 @@ export interface CmsSnapshotArtifactManifest {
     renderers: {
       detail: { entry: string; propsApiVersion: number; representations: string[] };
       preview: { entry: string; propsApiVersion: number; representations: string[] };
+      listRow: { entry: string; propsApiVersion: number };
     };
   };
 }
@@ -113,6 +114,10 @@ export const cmsSnapshotArtifactManifest: CmsSnapshotArtifactManifest = {
         entry: "./src/renderers/preview.tsx",
         propsApiVersion: 2,
         representations: [CMS_SNAPSHOT_MIME, CMS_PAGE_MIME],
+      },
+      listRow: {
+        entry: "./src/renderers/list-row.tsx",
+        propsApiVersion: 1,
       },
     },
   },
