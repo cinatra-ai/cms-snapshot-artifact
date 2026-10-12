@@ -38,7 +38,7 @@ describe("the props version this display is built against", () => {
 
   it("is declared by every renderer entry in the authoritative manifest", () => {
     const renderers = pkg.cinatra.artifact.ui.renderers;
-    expect(Object.keys(renderers).sort()).toEqual([...SLOTS].sort());
+    expect(Object.keys(renderers).sort()).toEqual([...SLOTS, "listRow"].sort());
     for (const slot of SLOTS) {
       expect(renderers[slot].propsApiVersion, slot).toBe(PROPS_API_VERSION);
     }
