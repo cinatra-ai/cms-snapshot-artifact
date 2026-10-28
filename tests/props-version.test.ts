@@ -35,16 +35,18 @@ describe("the props version this display is built against", () => {
     expect(PROPS_API_VERSION).toBe(2);
   });
 
-  it("declares v5 only for detail, retaining v2 for preview", () => {
+  it("declares v5 only for detail, retaining v2 for preview and listRow at its own version", () => {
     const renderers = pkg.cinatra.artifact.ui.renderers;
-    expect(Object.keys(renderers).sort()).toEqual([...SLOTS].sort());
+    expect(Object.keys(renderers).sort()).toEqual([...SLOTS, "listRow"].sort());
     expect(renderers.detail.propsApiVersion).toBe(5);
     expect(renderers.preview.propsApiVersion).toBe(PROPS_API_VERSION);
+    expect(renderers.listRow.propsApiVersion).toBe(1);
   });
 
   it("is declared by the exported typed manifest, in lock-step with package.json", () => {
     expect(cmsSnapshotArtifactManifest.ui.renderers.detail.propsApiVersion).toBe(5);
     expect(cmsSnapshotArtifactManifest.ui.renderers.preview.propsApiVersion).toBe(PROPS_API_VERSION);
+    expect(cmsSnapshotArtifactManifest.ui.renderers.listRow.propsApiVersion).toBe(1);
     expect(cmsSnapshotArtifactManifest.ui.renderers).toEqual(pkg.cinatra.artifact.ui.renderers);
   });
 });
