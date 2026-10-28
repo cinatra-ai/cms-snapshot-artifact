@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FRAME_WATCHDOG_MS, frameState } from "../src/cms-page-model";
-import { contentFloorMessage } from "../src/content-view";
+import { contentFloorMessage, resolveArtifactTextView } from "../src/content-view";
 import CmsSnapshotDetail from "../src/renderers/detail";
 import CmsSnapshotPreview from "../src/renderers/preview";
 import { PAGE_ADDRESS, PAGE_FORMS, PAGE_TITLE, pageProps, withPage } from "./cms-page-fixture";
@@ -215,6 +215,117 @@ for (const fixture of PAGE_FORMS) {
       );
       expect(blockText(html, LIST_ITEM)).toBe("Team — 35 39 per seat");
       for (const kind of [HEADING, PARAGRAPH, LIST_ITEM]) expect(blockText(html, kind)).not.toMatch(/ {2}/);
+    });
+  });
+}
+
+for (const fixture of PAGE_FORMS) {
+  describe(`decision-only detail snapshots — ${fixture.system}`, () => {
+    const render = (snapshot: ReturnType<typeof pageProps>): string =>
+      renderToStaticMarkup(<CmsSnapshotDetail {...snapshot} />);
+    const v5 = (review: unknown = { reading: "continued", openLive: PAGE_ADDRESS, decidedAt: "2026-10-07T09:20:00.000Z" }, document: unknown = fixture.form) => ({
+      ...pageProps(document),
+      propsApiVersion: 5,
+      review,
+      edit: { kind: "read-only", channelVersion: 2, reason: "read-only-surface" },
+    });
+    const normalizeVersion = (html: string): string => html.replace('data-props-api-version="5"', 'data-props-api-version="2"');
+    const assertNoPublicationSentence = (html: string): void => {
+      expect(html).not.toContain("The change went to the site");
+      expect(html).not.toContain("published it at");
+      expect(html).not.toContain("cms-page-continued-reading");
+      expect(html).not.toContain("09:20");
+      expect(html).not.toMatch(/continued|decided on the revision above/i);
+    };
+
+    it("admits v5 while retaining the complete legacy view, frozen input and read-only controls", () => {
+      const snapshot = v5();
+      const before = JSON.stringify(snapshot);
+      const fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+      const html = render(snapshot);
+      expect(html).toContain('data-props-api-version="5"');
+      expect(html).not.toContain("data-cms-detail-floor");
+      expect(normalizeVersion(html)).toBe(render(pageProps(fixture.form)));
+      expect(html).toContain("<iframe");
+      expect(html).toContain(`src="${PAGE_ADDRESS}"`);
+      expect(html).toContain("data-cms-page-excerpts");
+      expect(all(html, /<del\b[^>]*>([^<]*)<\/del>/g)).toHaveLength(3);
+      expect(all(html, /<ins\b[^>]*>([^<]*)<\/ins>/g)).toHaveLength(3);
+      expect(all(html, /<a\b([^>]*)>/g)).toHaveLength(1);
+      expect(html).toContain(`href="${escapeHtml(fixture.cmsAddress)}"`);
+      expect(html).toContain("Open in the CMS");
+      expect(html).not.toMatch(/<button|<input|<textarea|contenteditable/i);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(JSON.stringify(snapshot)).toBe(before);
+      assertNoPublicationSentence(html);
+    });
+
+    it("never derives a publication sentence from decision-only, malformed or unassigned review facts", () => {
+      const reviews: unknown[] = [
+        undefined, null, {},
+        { reading: "continued", openLive: PAGE_ADDRESS },
+        { reading: "continued", openLive: PAGE_ADDRESS, decidedAt: null },
+        { reading: "continued", openLive: PAGE_ADDRESS, decidedAt: "not a time" },
+        { reading: "pending", openLive: null, decidedAt: "2026-10-07T09:20:00.000Z" },
+        { reading: "rejected", decidedAt: "2026-10-07T09:20:00.000Z" },
+        { reading: "superseded", decidedAt: "2026-10-07T09:20:00.000Z" },
+        { reading: "continued", decidedAt: "2026-10-07T09:20:00.000Z", effect: { recordedAt: "2026-10-08T09:20:00.000Z", record: { published: true, publishedAt: "2026-10-08T09:20:00.000Z" } } },
+      ];
+      for (const review of reviews) {
+        const html = render({ ...v5(), review });
+        expect(html).toContain("data-cms-page-excerpts");
+        expect(html).toContain("Open in the CMS");
+        assertNoPublicationSentence(html);
+      }
+    });
+
+    it("does not treat authored fields or ordinary timestamps as remote publication facts", () => {
+      const authored = { ...fixture.form, publishedAt: "2026-10-08T09:20:00.000Z", publicationStatus: "published", review: { effect: { publishedAt: "2026-10-08T09:20:00.000Z" } }, readAt: "2026-10-06T07:11:00.000Z" };
+      const snapshot = v5(undefined, authored);
+      snapshot.artifact = { ...snapshot.artifact, createdAt: "2026-10-05T04:02:00.000Z", updatedAt: "2026-10-06T05:03:00.000Z" };
+      const html = render(snapshot);
+      expect(normalizeVersion(html)).toBe(render(pageProps(fixture.form)));
+      assertNoPublicationSentence(html);
+      for (const time of [snapshot.artifact.createdAt, snapshot.artifact.updatedAt, authored.readAt]) expect(html).not.toContain(time);
+    });
+
+    it("keeps strict content floors when v5 carries cut, mismatched or invalid content", () => {
+      const whole = JSON.stringify(fixture.form);
+      const cases = [
+        { overrides: { truncated: true, text: whole.slice(0, 40), byteLength: Buffer.byteLength(whole), projectedByteLength: 40 }, reason: "content-over-cap" },
+        { overrides: { representationRevisionId: "another-revision" }, reason: "content-revision-mismatch" },
+        { overrides: { channelVersion: 2 }, reason: "channel-version" },
+        { overrides: { cap: 0 }, reason: "invalid-content-projection" },
+        { overrides: { projectedByteLength: -1 }, reason: "invalid-content-projection" },
+      ];
+      for (const { overrides, reason } of cases) {
+        const snapshot = v5();
+        snapshot.content = { ...snapshot.content, ...overrides } as typeof snapshot.content;
+        const html = render(snapshot);
+        expect(html).toContain(`data-cms-detail-floor="${reason}"`);
+        expect(html).not.toContain("<iframe");
+        expect(html).not.toContain("Open in the CMS");
+        assertNoPublicationSentence(html);
+      }
+    });
+
+    it("leaves preview and the shared resolver strictly at v2 and refuses unknown detail versions", () => {
+      const legacy = pageProps(fixture.form);
+      expect(render(legacy)).toContain('data-props-api-version="2"');
+      const preview = renderToStaticMarkup(<CmsSnapshotPreview {...legacy} />);
+      expect(preview).toContain('data-props-api-version="2"');
+      expect(preview).toContain("data-cms-excerpt");
+      expect(preview).not.toContain("data-cms-preview-floor");
+      expect(renderToStaticMarkup(<CmsSnapshotPreview {...v5()} />)).toContain('data-cms-preview-floor="props-version"');
+      expect(resolveArtifactTextView(v5())).toEqual({ kind: "floor", reason: "props-version" });
+      for (const version of [undefined, 1, 3, 4, 6, 99, "5", Number.NaN]) {
+        const snapshot = { ...legacy, propsApiVersion: version } as ReturnType<typeof pageProps>;
+        const html = render(snapshot);
+        expect(html).toContain('data-cms-detail-floor="props-version"');
+        expect(html).not.toContain("<iframe");
+        assertNoPublicationSentence(html);
+      }
     });
   });
 }
