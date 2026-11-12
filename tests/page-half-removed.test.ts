@@ -109,12 +109,14 @@ describe("the page half is not in this package", () => {
   });
 
   it("resolves a JSON page document to text, never to a page view", () => {
+    // A complete, valid page form (one excerpt): the removed page parser
+    // accepted exactly this, so it is the input that used to become a page view.
     const form = JSON.stringify({
       cinatraCmsPage: 1,
       system: "wordpress",
       page: { title: "Pricing", address: "https://acme.example/pricing" },
       readAt: "2026-09-29T10:00:00.000Z",
-      excerpts: [],
+      excerpts: [{ region: "content", position: 0, kind: "paragraph", published: "old", proposed: "new" }],
     });
     const view = resolveArtifactTextView(
       props(textContent(form), { representation: { revisionId: REVISION_ID, mime: "application/json" } }),
