@@ -107,7 +107,7 @@ export const cmsSnapshotArtifactManifest: CmsSnapshotArtifactManifest = {
     renderers: {
       detail: {
         entry: "./src/renderers/detail.tsx",
-        propsApiVersion: 2,
+        propsApiVersion: 5,
         representations: [CMS_SNAPSHOT_MIME, CMS_PAGE_MIME],
       },
       preview: {
