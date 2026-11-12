@@ -13,9 +13,6 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs"
   },
-  "dependencies": {
-    "lucide-react": "^1.20.0"
-  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -50,8 +47,7 @@
       "accepts": {
         "file": {
           "mimeTypes": [
-            "application/vnd.cinatra.cms-fields+json",
-            "application/json"
+            "application/vnd.cinatra.cms-fields+json"
           ]
         }
       },
@@ -63,45 +59,23 @@
             "entry": "./src/renderers/detail.tsx",
             "propsApiVersion": 5,
             "representations": [
-              "application/vnd.cinatra.cms-fields+json",
-              "application/json"
+              "application/vnd.cinatra.cms-fields+json"
             ]
           },
           "preview": {
             "entry": "./src/renderers/preview.tsx",
             "propsApiVersion": 2,
             "representations": [
-              "application/vnd.cinatra.cms-fields+json",
-              "application/json"
+              "application/vnd.cinatra.cms-fields+json"
             ]
-          },
-          "listRow": {
-            "entry": "./src/renderers/list-row.tsx",
-            "propsApiVersion": 1
           }
         }
-      },
-      "objectTypes": [
-        {
-          "type": "@cinatra-ai/cms-snapshot-artifact:cms-page",
-          "claim": "dedicated",
-          "dispositions": {
-            "projection": "artifact-safe",
-            "pinnable": true,
-            "snapshotPolicy": "none",
-            "sensitivity": "normal"
-          },
-          "schema": {
-            "type": "object"
-          }
-        }
-      ]
+      }
     }
   },
   "exports": {
     ".": "./src/index.ts",
     "./src/renderers/detail": "./src/renderers/detail.tsx",
-    "./src/renderers/preview": "./src/renderers/preview.tsx",
-    "./src/renderers/list-row": "./src/renderers/list-row.tsx"
+    "./src/renderers/preview": "./src/renderers/preview.tsx"
   }
 }
