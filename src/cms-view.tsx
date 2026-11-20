@@ -19,7 +19,7 @@ const scopeBoxStyle: CSSProperties = {
   gap: "6px",
   padding: "8px 10px",
   borderRadius: "6px",
-  background: "var(--muted, #f3f4f6)",
+  background: "var(--surface-muted, #f3f4f6)",
   border: "1px solid var(--border, #e5e7eb)",
 };
 
@@ -75,7 +75,7 @@ const blockValueStyle: CSSProperties = {
     'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace)',
   fontSize: "12px",
   color: "var(--foreground, #111827)",
-  background: "var(--muted, #f3f4f6)",
+  background: "var(--surface-muted, #f3f4f6)",
   border: "1px solid var(--border, #e5e7eb)",
   borderRadius: "6px",
   padding: "8px 10px",
